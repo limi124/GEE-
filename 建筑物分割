@@ -1,0 +1,99 @@
+// ============ 参数 ============
+var aoi = ee.FeatureCollection('projects/land-111/assets/chengguan');
+var start = '2023-01-01';
+var end   = '2023-12-31';
+var cloudProbThresh = 40;     // s2cloudless 云概率阈值（越小越严格）
+var minAreaM2 = 60;           // 最小面积过滤（m²），10m 分辨率下 1 像素≈100m²
+var tileScale = 4;            // reduceToVectors 的 tilescale，内存不够可调大
+
+
+/////////////////////////////////////// …… /////////////////////////
+完整代码关注全域智图公众号
+/////////////////////////////////////// …… /////////////////////////
+完整代码关注全域智图公众号
+/////////////////////////////////////// …… /////////////////////////
+完整代码关注全域智图公众号
+/////////////////////////////////////// …… //////////////////////////////////////////////////////////////// …… /////////////////////////
+完整代码关注全域智图公众号
+/////////////////////////////////////// …… /////////////////////////
+完整代码关注全域智图公众号
+/////////////////////////////////////// …… /////////////////////////
+完整代码关注全域智图公众号
+/////////////////////////////////////// …… /////////////////////////
+
+
+
+
+
+// ============ 数据：S2 SR + s2cloudless ============
+var s2  = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+            .filterBounds(aoi).filterDate(start, end);
+var s2c = ee.ImageCollection('COPERNICUS/S2_CLOUD_PROBABILITY')
+            .filterBounds(aoi).filterDate(start, end);
+
+// 把云概率集合按影像 ID 连接到 SR 集合
+var joined = ee.ImageCollection(ee.Join.saveFirst('clouds').apply({
+  primary: s2,
+  secondary: s2c,
+  condition: ee.Filter.equals({
+    leftField: 'system:index',
+    rightField: 'system:index'
+  })
+}));
+
+// 去云 + 选择波段 + 归一化
+function maskS2(img){
+  var cloudProb = ee.Image(img.get('clouds')).select('probability');
+  var isNotCloud = cloudProb.lt(cloudProbThresh);
+  var scl = img.select('SCL');
+  // 过滤阴影/云/雪（SCL: 3=shadow, 8=cloud, 9=cirrus, 10=snow）
+  var sclMask = scl.neq(3).and(scl.neq(8)).and(scl.neq(9)).and(scl.neq(10));
+  var mask = isNotCloud.and(sclMask);
+  return img.updateMask(mask)
+            .select(['B2','B3','B4','B8','B11','B12'],
+                    ['blue','green','red','nir','swir1','swir2'])
+            .divide(10000);
+}
+
+
+
+/////////////////////////////////////// …… /////////////////////////
+完整代码关注全域智图公众号
+/////////////////////////////////////// …… /////////////////////////
+完整代码关注全域智图公众号
+/////////////////////////////////////// …… /////////////////////////
+完整代码关注全域智图公众号
+/////////////////////////////////////// …… /////////////////////////
+
+
+
+
+
+/////////////////////////////////////// …… /////////////////////////
+完整代码关注全域智图公众号
+/////////////////////////////////////// …… /////////////////////////
+完整代码关注全域智图公众号
+/////////////////////////////////////// …… /////////////////////////
+完整代码关注全域智图公众号
+/////////////////////////////////////// …… /////////////////////////
+
+
+
+
+
+
+
+
+// ============ 显示 ============
+Map.centerObject(aoi, 15);
+Map.addLayer(s2clean, {bands: ['swir1','nir','red'], min:0, max:0.3}, 'S2 (SWIR1-NIR-RED)');
+Map.addLayer(ibi, {min:-0.2, max:0.3, palette:['blue','white','red']}, 'IBI');
+Map.addLayer(builtMask.updateMask(builtMask), {palette:['yellow']}, 'Built mask');
+Map.addLayer(vectors, {color:'cyan'}, 'Buildings (S2 segmentation)');
+
+// ============ 导出 ============
+Export.table.toDrive({
+  collection: vectors,
+  description: 'Buildings_S2_Segmentation',
+  fileFormat: 'SHP'
+});
