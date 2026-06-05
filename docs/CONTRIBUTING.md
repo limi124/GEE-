@@ -2,13 +2,25 @@
 
 ## 新增脚本
 
-新增脚本请放入 `脚本/` 目录，并使用英文小写、数字和下划线命名，例如：
+新增脚本请放入 `scripts/` 目录，并使用英文小写、数字和下划线命名，例如：
 
 ```text
 sentinel2_ndvi_timeseries.js
 landsat_cropland_random_forest.js
 gpm_extreme_precipitation_analysis.js
 ```
+
+## 新增文档
+
+新增文档请放入 `docs/` 目录，并使用英文小写、数字和下划线命名，例如：
+
+```text
+gee_export_notes.md
+dataset_notes.md
+method_comparison.md
+```
+
+如果文档对应某个脚本，建议在文档开头写清楚关联脚本、适用场景和更新时间。
 
 ## 推荐脚本头部
 
