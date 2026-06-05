@@ -1,11 +1,11 @@
-﻿/**** 极端降水分析（示例 ROI 来自公开行政区数据） ****/
+/ 极端降水 /
 /* 数据源：NASA/GPM_L3/IMERG_V07  (precipitation, mm/hr) */
 
 // ===================== 参数区（只改这里） =====================
-var ASSET_FC_ID   = 'FAO/GAUL/2015/level1';
-var USE_PROPERTY  = true;            // 是否按属性筛选 FeatureCollection 里的要素
-var PROPERTY_NAME = 'ADM0_NAME';     // 属性名（当 USE_PROPERTY=true 时生效）
-var PROPERTY_VAL  = 'China';         // 属性值（当 USE_PROPERTY=true 时生效）
+var ASSET_FC_ID   = ''; // ← 必填：你的 FeatureCollection 资产ID
+var USE_PROPERTY  = false;           // 是否按属性筛选资产里的要素
+var PROPERTY_NAME = 'NAME';          // 属性名（当 USE_PROPERTY=true 时生效）
+var PROPERTY_VAL  = 'Beijing';       // 属性值（当 USE_PROPERTY=true 时生效）
 
 var START_DATE = '2024-01-01';       // 起始（含）
 var END_DATE   = '2025-01-01';       // 结束（不含）
@@ -49,27 +49,143 @@ var imerg = ee.ImageCollection('NASA/GPM_L3/IMERG_V07')
 var nHalfHours = imerg.size();
 print('IMERG slots (half-hour or hourly depending on product):', nHalfHours);
 
+// 按天累加（sum mm/hr * 小时数 ≈ mm）
+var start = ee.Date(START_DATE);
+var end   = ee.Date(END_DATE);
+var nDays = end.difference(start, 'day');
+
+var days = ee.List.sequence(0, nDays.subtract(1)).map(function(i){
+  var sd = start.advance(ee.Number(i), 'day');
+  var ed = sd.advance(1, 'day');
+  var day = imerg.filterDate(sd, ed).sum().rename('precipitation'); // mm/day
+  var dateBand = ee.Image.constant(sd.millis()).rename('date').toInt64();
+  return day.addBands(dateBand)
+           .set('system:time_start', sd.millis())
+           .set('system:index', sd.format('YYYY-MM-dd'));
+});
+
+var dailyIC = ee.ImageCollection.fromImages(days);
+print('Daily images:', dailyIC.size());
 
 
+// ========== 指标影像（像元级） ==========
+// 期间平均日降水
+var meanDaily = dailyIC.select('precipitation').mean().toFloat();
+// 期间最大日降水
+var maxDaily  = dailyIC.select('precipitation').max().toFloat();
+
+// 峰值发生日期（对空集兜底）
+var hasDaily  = dailyIC.size().gt(0);
+var safeMaxPick = ee.Image(ee.Algorithms.If(
+  hasDaily,
+  dailyIC.qualityMosaic('precipitation'), // bands: precipitation, date
+  ee.Image.constant(0).rename('precipitation')
+    .addBands(ee.Image.constant(start.millis()).rename('date').toInt64())
+    .toFloat()
+));
+var peakDate = safeMaxPick.select('date'); // 毫秒
+
+// ≥ 阈值（mm/day）的天数
+var thr = ee.Number(THRESH_MM);
+var heavyDays = dailyIC.select('precipitation')
+  .map(function(img){ return img.gte(thr).selfMask(); })
+  .sum()
+  .rename('heavy_days')
+  .toFloat();
+
+// 3 日滚动累计最大值
+function rolling3(IC) {
+  var list = IC.toList(IC.size());
+  var out = ee.ImageCollection(ee.List.sequence(0, IC.size().subtract(1)).map(function(i){
+    i = ee.Number(i);
+    var img = ee.Image(list.get(i));
+    var d0 = ee.Date(img.get('system:time_start'));
+    var sd = d0.advance(-2,'day');
+    var ed = d0.advance(1,'day');
+    var s3 = IC.filterDate(sd, ed).select('precipitation').sum().rename('pr_3day');
+    return s3.copyProperties(img, ['system:time_start','system:index']);
+  }));
+  return out;
+}
+var rs3IC = rolling3(dailyIC);
+var max3  = ee.Image(ee.Algorithms.If(
+  rs3IC.size().gt(0), rs3IC.select('pr_3day').max(), ee.Image.constant(0).rename('pr_3day')
+)).toFloat();
 
 
+// ========== 可视化 ==========
+Map.addLayer(meanDaily.clip(roi), {min:0, max:50},  '平均日降水(mm)', true);
+Map.addLayer(maxDaily.clip(roi),  {min:0, max:200}, '最大日降水(mm)', false);
+Map.addLayer(heavyDays.clip(roi), {min:0, max:30},  '≥阈值天数', true);
+Map.addLayer(max3.clip(roi),      {min:0, max:300}, '3日累计最大(mm)', false);
+
+// 峰值日期可用渐变查看分布（毫秒范围用固定数值避免客户端参与）
+Map.addLayer(
+  peakDate.clip(roi),
+  {min: start.millis().getInfo(), max: end.millis().getInfo()},
+  '峰值发生日期(ms)', false
+);
 
 
+// ========== 区域/点位 时间序列图 ==========
+// 点位序列（你原来就有）
+print(
+  ui.Chart.image.series({
+    imageCollection: dailyIC.select('precipitation'),
+    region: pt,
+    reducer: ee.Reducer.first(),
+    scale: SCALE_M,
+    xProperty: 'system:time_start'
+  }).setOptions({title: '点位日降水（mm）', vAxis:{title:'mm'}})
+);
+
+// ROI 平均序列（推荐写法）
+print(
+  ui.Chart.image.series({
+    imageCollection: dailyIC.select('precipitation'),
+    region: roi,                     // 直接传几何
+    reducer: ee.Reducer.mean(),      // 区域平均
+    scale: SCALE_M,
+    xProperty: 'system:time_start'
+  }).setOptions({title: 'ROI 平均日降水（mm）', vAxis:{title:'mm'}})
+);
 
 
+// 月累计（区域平均）柱状图
+var months = ee.ImageCollection(
+  ee.List.sequence(0, nDays.subtract(1)).map(function(i){
+    var sd = start.advance(ee.Number(i), 'day');
+    var ym = sd.format('YYYY-MM');
+    return ee.Image(0).set('ym', ym);
+  })
+).distinct('ym');
 
+var monthsIC = ee.ImageCollection(ee.List(months.aggregate_array('ym')).map(function(ym){
+  ym = ee.String(ym);
+  var d0 = ee.Date.parse('YYYY-MM', ym);
+  var d1 = d0.advance(1,'month');
+  var sum = dailyIC.filterDate(d0, d1).select('precipitation').sum().rename(ym);
+  return sum.set('system:index', ym);
+}));
 
+var monthsList = monthsIC.toList(monthsIC.size());
+var mFc = ee.FeatureCollection(ee.List.sequence(0, monthsIC.size().subtract(1)).map(function(i){
+  var img = ee.Image(monthsList.get(i));
+  var band = ee.String(img.bandNames().get(0));
+  var mean = img.reduceRegion({
+    reducer: ee.Reducer.mean(),
+    geometry: roi,
+    scale: SCALE_M,
+    bestEffort: true
+  }).get(band);
+  return ee.Feature(null, {'month': band, 'sum_mm_meanPix': mean});
+}));
 
-
-
-
-
-
-
-
-
-
-
+print(
+  ui.Chart.feature.byFeature(mFc, 'month', 'sum_mm_meanPix')
+    .setChartType('ColumnChart')
+    .setOptions({title:'ROI 平均月累计（mm）', vAxis:{title:'mm'}, hAxis:{title:'YYYY-MM'}})
+);
 
 
 // ========== 可选：导出 ==========
