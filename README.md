@@ -20,13 +20,13 @@
 
 | 文件 | 主题 | 主要数据源 |
 | --- | --- | --- |
-| `scripts/dynamic_world_10m_land_cover.js` | 10 m 土地利用/覆盖分类合成 | Dynamic World |
-| `scripts/sentinel2_building_extraction_ghsl_height.js` | 建筑物分割与建筑高度可视化/导出 | Sentinel-2, s2cloudless, GHSL |
-| `scripts/gpm_extreme_precipitation_analysis.js` | 极端降水统计分析 | NASA GPM IMERG, GAUL |
-| `scripts/landsat_cropland_random_forest.js` | 耕地随机森林高精度反演 | Landsat 8/9, ESA WorldCover |
-| `scripts/basin_irrigated_rainfed_cropland_ndvi.js` | 流域尺度灌溉/雨养耕地与 NDVI 时序分析 | HydroATLAS, GFSAD, MODIS/Landsat |
-| `scripts/landsat_chlorophyll_a_random_forest_timeseries.js` | 叶绿素 a 随机森林拟合与时序分析 | Landsat 8/9 |
-| `scripts/legacy/dynamic_world_10m_land_cover_legacy.txt` | 10 m 土地利用历史版本 | Dynamic World |
+| `scripts/10m土地利用覆盖分类.js` | 10 m 土地利用/覆盖分类合成 | Dynamic World |
+| `scripts/建筑物分割与高度提取.js` | 建筑物分割与建筑高度可视化/导出 | Sentinel-2, s2cloudless, GHSL |
+| `scripts/极端降水分析.js` | 极端降水统计分析 | NASA GPM IMERG, GAUL |
+| `scripts/耕地随机森林反演.js` | 耕地随机森林高精度反演 | Landsat 8/9, ESA WorldCover |
+| `scripts/流域灌溉雨养耕地NDVI分析.js` | 流域尺度灌溉/雨养耕地与 NDVI 时序分析 | HydroATLAS, GFSAD, MODIS/Landsat |
+| `scripts/叶绿素a随机森林时序分析.js` | 叶绿素 a 随机森林拟合与时序分析 | Landsat 8/9 |
+| `scripts/legacy/10m土地利用覆盖分类_历史版本.txt` | 10 m 土地利用历史版本 | Dynamic World |
 
 ## 使用方式
 
@@ -40,7 +40,7 @@
 
 - 新脚本统一放在 `scripts/` 目录。
 - 文档、说明、教程和使用记录统一放在 `docs/` 目录。
-- 文件名建议使用英文小写、数字和下划线，并以 `.js` 或 `.md` 结尾，避免跨平台路径问题。
+- 脚本文件名可以使用中文，便于在 GitHub 页面中直接识别用途；文档文件名建议使用英文小写、数字和下划线。
 - 每个脚本顶部建议写清楚用途、数据源、研究区、时间范围、主要输出和需要用户修改的参数。
 - 不提交账号密钥、私有 Asset 路径、导出结果、大体积数据或临时缓存。
 - 如果脚本改自论文、教程或公开资料，请在注释中补充来源链接或出处。

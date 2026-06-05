@@ -2,12 +2,12 @@
 
 ## 新增脚本
 
-新增脚本请放入 `scripts/` 目录，并使用英文小写、数字和下划线命名，例如：
+新增脚本请放入 `scripts/` 目录。脚本文件名可以使用中文，便于直接识别用途，例如：
 
 ```text
-sentinel2_ndvi_timeseries.js
-landsat_cropland_random_forest.js
-gpm_extreme_precipitation_analysis.js
+10m土地利用覆盖分类.js
+建筑物分割与高度提取.js
+极端降水分析.js
 ```
 
 ## 新增文档
