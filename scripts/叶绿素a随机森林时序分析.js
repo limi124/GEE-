@@ -1,4 +1,4 @@
-﻿// ================= 1) 研究区域 =================
+// ================= 1) 研究区域 =================
 var geometry = ee.FeatureCollection([
   ee.Feature(
     ee.Geometry.Polygon(
@@ -42,12 +42,29 @@ var chlFormula = chlCollection.select('chl_formula').median();
 var visFormula = {min: 0, max: 100, palette: ['#9aff14','#fbff19','#ff8319','#ff2419']};
 Map.addLayer(chlFormula, visFormula, '经验公式 Chl-a');
 
-// ================= 4) 采样点（10~80 随机） =================
+// ================= 4) 模拟采样点（10~80 随机） =================
 var points = ee.FeatureCollection.randomPoints({
   region: riverMask, points: 50, seed: 42
 });
+var pointsWithChla = points.randomColumn('rand', 42).map(function(f){
+  var chla = ee.Number(f.get('rand')).multiply(70).add(10); // 10~80
+  return f.set('chla', chla);
+});
+Map.addLayer(pointsWithChla, {color: 'red'}, '模拟采样点');
 
 // ================= 5) 训练数据：波段采样（全年中位合成） =================
+var composite = allToa.median().clip(riverMask);
+var bands = ['B2','B3','B4','B5'];
+
+var samples = composite.select(bands).sampleRegions({
+  collection: pointsWithChla,
+  properties: ['chla'],
+  scale: 30
+});
+print('全部样本（含chla与光谱）', samples);
+
+// 训练/测试划分（7:3）
+var sampled = samples.randomColumn('split', 7);
 var trainSet = sampled.filter(ee.Filter.lt('split', 0.7));
 var testSet  = sampled.filter(ee.Filter.gte('split', 0.7));
 print('训练样本数', trainSet.size());
@@ -66,6 +83,22 @@ Map.addLayer(chlRF, visRF, 'RF 回归预测 Chl-a');
 // 在测试集上做预测
 var testPred = testSet.classify(trained);
 
+// 计算误差统计
+var withErr = testPred.map(function(f){
+  var pred = ee.Number(f.get('classification'));
+  var obs  = ee.Number(f.get('chla'));
+  var resid = pred.subtract(obs);
+  return f.set({
+    pred: pred,
+    residual: resid,
+    abs_error: resid.abs(),
+    sq_error: resid.pow(2)
+  });
+});
+
+// MAE & RMSE
+var mae  = ee.Number(withErr.aggregate_mean('abs_error'));
+var rmse = ee.Number(withErr.aggregate_mean('sq_error')).sqrt();
 
 // 使用皮尔逊相关系数计算 R²（更稳健）
 var corrDict = withErr.reduceColumns(ee.Reducer.pearsonsCorrelation(), ['chla', 'pred']);
