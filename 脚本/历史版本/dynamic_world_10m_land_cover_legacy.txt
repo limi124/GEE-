@@ -1,7 +1,7 @@
-// =============================
+﻿// =============================
 // ✅ 1. 设置区域与时间
 // =============================
-var region =  ee.FeatureCollection('projects/land-111/assets/chengguan');
+var region = ee.Geometry.Rectangle([116.0, 39.5, 117.0, 40.5]);
 
 var start = ee.Date('2024-01-01');
 var end = ee.Date('2024-12-31');

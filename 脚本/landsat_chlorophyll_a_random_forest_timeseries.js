@@ -1,4 +1,4 @@
-// ================= 1) 研究区域 =================
+﻿// ================= 1) 研究区域 =================
 var geometry = ee.FeatureCollection([
   ee.Feature(
     ee.Geometry.Polygon(
@@ -46,10 +46,8 @@ Map.addLayer(chlFormula, visFormula, '经验公式 Chl-a');
 var points = ee.FeatureCollection.randomPoints({
   region: riverMask, points: 50, seed: 42
 });
-完整代码关注公众号全域制图
 
 // ================= 5) 训练数据：波段采样（全年中位合成） =================
-完整代码关注公众号全域制图
 var trainSet = sampled.filter(ee.Filter.lt('split', 0.7));
 var testSet  = sampled.filter(ee.Filter.gte('split', 0.7));
 print('训练样本数', trainSet.size());
@@ -68,7 +66,6 @@ Map.addLayer(chlRF, visRF, 'RF 回归预测 Chl-a');
 // 在测试集上做预测
 var testPred = testSet.classify(trained);
 
-完整代码关注公众号全域制图
 
 // 使用皮尔逊相关系数计算 R²（更稳健）
 var corrDict = withErr.reduceColumns(ee.Reducer.pearsonsCorrelation(), ['chla', 'pred']);

@@ -1,10 +1,10 @@
-/***********************
+﻿/***********************
  * 建筑物分割 + GHSL建筑高度（可视化 + 导出）
  * 修复要点：使用 Image(".../2018")；波段名 built_height
  ***********************/
 
 /* ============ 参数 ============ */
-var aoi = ee.FeatureCollection('projects/land-111/assets/chengguan');
+var aoi = ee.Geometry.Rectangle([116.0, 39.5, 117.0, 40.5]);
 var start = '2023-01-01';
 var end   = '2023-12-31';
 var cloudProbThresh = 40;     // s2cloudless 云概率阈值（越小越严格）
